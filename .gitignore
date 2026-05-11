@@ -1,0 +1,19 @@
+# 忽略 Visual Studio 的编译垃圾
+x64/
+x86/
+Debug/
+Release/
+.vs/
+*.user
+*.suo
+*.db
+*.lib
+*.dll
+*.exe
+x64/
+# 忽略第三方库的二进制目录
+**/lib-vc*/
+**/lib-mingw*/
+**/lib-static*/
+# 忽略临时文件
+新建文件夹/
