@@ -61,19 +61,31 @@ Indoor-Scene-Reconstruction/
 ```
 
 ## 项目流程
+
 graph TD
-    A[二维户型图 / 原始数据] --> B[图像预处理]
-    B --> B1[灰度化/高斯滤波]
-    B --> B2[Canny 边缘检测]
-    B2 --> C[霍夫线结构提取]
-    C --> D[几何结构解析]
-    D --> D1[交点提取与坐标对齐]
-    D --> D2[房间拓扑关系构建]
-    D1 & D2 --> E[三维 Mesh 自动生成]
-    E --> F[OpenGL 场景渲染]
-    F --> F1[手写 GLSL Shader]
-    F1 --> F2[Phong 光照模型 / 法线重建]
-    F2 --> G[室内三维可视化交互]
+    %% 定义节点样式
+    classDef input fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef process fill:#ffffff,stroke:#333,stroke-width:1px;
+    classDef core fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef output fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    %% 节点连接
+    Start([二维户型图]) --> Pre[图像预处理 <br/> Grayscale / Canny Edge]
+    Pre --> Hough[霍夫线结构提取 <br/> Hough Line Transform]
+    
+    subgraph Core_Logic [几何与空间解析]
+        Hough --> Parse[几何结构解析 <br/> 顶点对齐 / 拓扑构建]
+    end
+
+    Parse --> Mesh[三维 Mesh 生成 <br/> Vertex & Index Buffer]
+    Mesh --> Render[OpenGL 场景渲染 <br/> GLSL / Phong Lighting]
+    Render --> End([室内三维可视化交互])
+
+    %% 应用样式
+    class Start input;
+    class Pre,Hough,Mesh,Render process;
+    class Parse core;
+    class End output;
   
 ## 当前阶段
 
