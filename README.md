@@ -59,6 +59,22 @@ Indoor-Scene-Reconstruction/
 ├── *.vert / *.frag      # GLSL Shader
 └── main.cpp
 ```
+
+## 项目流程
+graph TD
+    A[二维户型图 / 原始数据] --> B[图像预处理]
+    B --> B1[灰度化/高斯滤波]
+    B --> B2[Canny 边缘检测]
+    B2 --> C[霍夫线结构提取]
+    C --> D[几何结构解析]
+    D --> D1[交点提取与坐标对齐]
+    D --> D2[房间拓扑关系构建]
+    D1 & D2 --> E[三维 Mesh 自动生成]
+    E --> F[OpenGL 场景渲染]
+    F --> F1[手写 GLSL Shader]
+    F1 --> F2[Phong 光照模型 / 法线重建]
+    F2 --> G[室内三维可视化交互]
+  
 ## 当前阶段
 
 ### 目前已完成：
