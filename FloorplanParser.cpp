@@ -1,21 +1,30 @@
-#include "json.hpp"
 #include <opencv2/opencv.hpp>
-#include <iostream>
-#include <fstream>
 #include <iomanip>
 #include <vector>
 
-using json = nlohmann::json;
 
-int  runPhase1_PixelToPhysical(){
+std::vector<cv::Vec4i> runPhase1_PixelToPhysical(){
 
-	cv::Mat img = cv::imread("assets/photo.jpg", cv::IMREAD_GRAYSCALE); //变量类型是Mat矩阵
+	cv::Mat img = cv::imread("assets/photo_2.jpg", cv::IMREAD_GRAYSCALE); 
 	
 	//for picture,check the path
 	if (img.empty()) {
 		std::cout << "Don't find the image! Please check the path " << std::endl;
-		return -1;
+		return {};
 	}
+
+	//print image size
+	float targetWidth = 1000.0f;
+
+	//resize the image to a fixed width, and keep the aspect ratio unchanged
+	float scale = targetWidth / img.cols;
+	
+	//refese scaling the image
+	int targetHeight = static_cast<int>(img.rows * scale);
+	
+	//resize the image to the target size, using INTER_AREA interpolation method, which is good for shrinking the image
+	//six Parameters (input image, output image, dsize, fx, fy, interpolation method), if dsize is specified, fx and fy are ignored (can be 0)
+	cv::resize(img, img, cv::Size(targetWidth, targetHeight), 0, 0, cv::INTER_AREA);
 
 	// std::cout << img.cols << std::endl;  362
 	// std::cout << img.rows << std::endl;  512
@@ -27,7 +36,7 @@ int  runPhase1_PixelToPhysical(){
 	
 	cv::Mat edgeImg;
 
-	//Canny
+//Canny: find the place which has a large gradient change, and mark it as an edge. The parameters are: (input image, output image, low threshold, high threshold)
 	
 	cv::Canny(img, edgeImg, 80, 150);
 
@@ -43,8 +52,10 @@ int  runPhase1_PixelToPhysical(){
 	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
 
 	//apply dilation
-	
+
 	cv::Mat dilatedEdgeImg;
+
+//Dilation:make two lines close to each other become one line, the parameters are: (input image, output image, kernel, anchor point, iterations)
 
 	cv::dilate(edgeImg, dilatedEdgeImg, kernel, cv::Point(-1, -1), 1);
 
@@ -56,6 +67,9 @@ int  runPhase1_PixelToPhysical(){
 	cv::Mat thinkernel = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3));
 
 	cv::Mat thinnedEdgeImg;
+
+//Erosion: make one big line to be a thinned line, the parameters are: (input image, output image, kernel, anchor point, iterations)
+
 	cv::erode(dilatedEdgeImg, thinnedEdgeImg, thinkernel, cv::Point(-1, -1), 2);
 
 	cv::imshow("thinnedEdge", thinnedEdgeImg);
@@ -65,9 +79,9 @@ int  runPhase1_PixelToPhysical(){
 
 	std::vector<cv::Vec4i> lines;
 
-	//HoughLinesP
+//HoughLinesP: find line segments in the image, the parameters are: (input image, output vector of lines, rho, theta, threshold, minimum line length, maximum line gap)
 	
-	cv::HoughLinesP(thinnedEdgeImg, lines, 1, CV_PI / 180, 20, 10, 30);
+	cv::HoughLinesP(thinnedEdgeImg, lines, 1, CV_PI / 180, 30, 20, 35);
 
 	//paint
 	
@@ -84,32 +98,12 @@ int  runPhase1_PixelToPhysical(){
 	}
 
 	std::cout << "Detected lines: " << lines.size() << std::endl;
+
 	cv::imshow("HoughLinesP Result", resultImg);
 	cv::waitKey(0);
 
-	//JSON print data
-	
-	json house;
-	house["map_info"] = {
-	{"name", "Myh_Level_1"},
-	{"count", lines.size()},
-	{"export_time", "2026-04-15"} 
-	};
-
-	house["walls"] = json::array();
-
-	for (size_t i = 0; i < lines.size(); i++) {
-		cv::Vec4i l = lines[i];
-		json wall;
-		wall["id"] = i;
-		wall["start"] = { {"x", l[0]}, {"y", l[1]} };
-		wall["end"] = { {"x", l[2]}, {"y", l[3]} };
-		house["walls"].push_back(wall);
-	}
-
-	std::ofstream out("house.json");
-	out << std::setw(4) << house << std::endl;
-	out.close();
+/*
+	have no value for this step, but I want to show the process of image processing, so I put it here
 
 	//Binariztion
 	
@@ -168,5 +162,8 @@ int  runPhase1_PixelToPhysical(){
 	cv::imshow("Binary Image", binaryImg);
 	cv::imshow("ROI Image", roi);
 	cv::waitKey(0);
-	return 0;
+
+*/
+
+	return lines;
 }

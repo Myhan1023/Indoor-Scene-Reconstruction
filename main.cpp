@@ -4,11 +4,14 @@
 #include "Texture.h"
 #include "Mesh.h"
 #include "WindowManager.h"
+#include "SemanticAnalyzer.h"
+#include "PipeLine.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <opencv2/opencv.hpp>
 
 void runPhase3_PixelToPhysical(std::vector<Vertex>& outVertices, std::vector<unsigned int>& outIndices);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
@@ -75,6 +78,11 @@ int main() {
 		floorID,
 		"floorTexture"
 	};
+
+	//SemanticAnalyzer
+
+	std::vector<SemanticObject> finalDoors = buildSemanticAnalyzer();
+	std::cout << "do a good job " << finalDoors.size() << " door" << std::endl;
 
 	//create vertices and indices
 
