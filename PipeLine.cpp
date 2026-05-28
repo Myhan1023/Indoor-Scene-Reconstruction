@@ -1,6 +1,7 @@
 #include <vector>
 #include <ostream>
 #include <fstream>
+#include <set>
 #include "PipeLine.h"
 #include <opencv2/opencv.hpp>
 #include "json.hpp"
@@ -106,30 +107,59 @@ std::vector<SemanticObject> buildSemanticAnalyzer() {
 		}
 	}
 	
+	//Establish a blacklist for doors and windows
+
+	std::set<size_t> ignoreLineIDs;
+
+	for (const auto& obj : rawObjects) {
+
+		if (obj.Type == SemanticType::WINDOW || obj.Type == SemanticType::DOOR) {
+			//if it is a door / window, put it in the ignoreLineIDS boxs
+			for (int lineID : obj.sourceLineID) {
+				ignoreLineIDs.insert(lineID);
+			}
+
+
+		}
+	}
 
 	std::vector<SemanticObject> windows = uniqueWindows;
 	std::vector <SemanticObject> doors = uniqueDoors;
  
+	std::vector<cv::Vec4i> pureWallLines;
+	for (size_t i = 0;i < rawlines.size();i++) {
+		if (!ignoreLineIDs.count(i)) {
+			pureWallLines.push_back(rawlines[i]);
+		}
+	}
+
+	std::vector<cv::Vec4i> finalizedWAlls = analyzer.mergeWallSegments(pureWallLines);
+
+	size_t finalTotalCount = finalizedWAlls.size() + windows.size() + doors.size();
 	//JSON print data
 
 	json house;
 	house["map_info"] = {
-	{"name", "Myh_Level_1"},
-	{"count", rawlines.size()},
-	{"export_time", "2026-04-15 -> 2026-05-17 -> 2026-05-19"}
+	{"name", "Myh_Level_1 -> Level_2"},
+	{"count", finalTotalCount},
+	{"export_time", "2026-04-15 -> 2026-05-17 -> 2026-05-19 -> 2026-05-24"}
 	};
 
 	//WALL
 
 	house["walls"] = json::array();
+	int wallCount = 0;
 
-	for (size_t i = 0; i < rawlines.size(); i++) {
-		cv::Vec4i l = rawlines[i];
-		json wall;
-		wall["id"] = i;
+	for (size_t i = 0; i < finalizedWAlls.size(); i++) {
+	
+		cv::Vec4i l = finalizedWAlls[i];
+
+    	json wall;
+ 		wall["id"] = wallCount++;
 		wall["start"] = { {"x", l[0]}, {"y", l[1]} };
 		wall["end"] = { {"x", l[2]}, {"y", l[3]} };
 		house["walls"].push_back(wall);
+		
 	}
 
 	//WINDOW

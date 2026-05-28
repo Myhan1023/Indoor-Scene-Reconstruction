@@ -52,7 +52,7 @@ void Mesh::Draw(Shader& shader) {
 
 	//After drawing, restore the texture unit to the default state
 
-	glActiveTexture(GL_TEXTURE);
+	glActiveTexture(GL_TEXTURE0);
 
 }
 

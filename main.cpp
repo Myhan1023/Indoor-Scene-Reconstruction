@@ -16,7 +16,7 @@
 void runPhase3_PixelToPhysical(std::vector<Vertex>& outVertices, std::vector<unsigned int>& outIndices);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-
+int runPhase2_PixelToPhysical();
 // Global Camera
 
 //Camera's position,(z = 5.0f, out of screen)
@@ -66,7 +66,7 @@ int main() {
 	
 	unsigned int wallID = loadTexture("assets/wall.jpg");
 	unsigned int floorID = loadTexture("assets/floor.jpg");
-
+	unsigned int doorID = loadTexture("assets/door.jpg");
 	//make in struct
 	
 	Texture wallTexture ={
@@ -79,10 +79,10 @@ int main() {
 		"floorTexture"
 	};
 
-	//SemanticAnalyzer
-
-	std::vector<SemanticObject> finalDoors = buildSemanticAnalyzer();
-	std::cout << "do a good job " << finalDoors.size() << " door" << std::endl;
+	Texture doorTexture = {
+		doorID,
+		"doorTexture"
+	};
 
 	//create vertices and indices
 
@@ -92,7 +92,9 @@ int main() {
 
 	houseTextures.push_back(wallTexture);
 	houseTextures.push_back(floorTexture);
+	houseTextures.push_back(doorTexture);
 
+	runPhase2_PixelToPhysical();
 	//run phase3 to fill vertices and indices
 	runPhase3_PixelToPhysical(vertices, indices);
 
@@ -105,12 +107,12 @@ int main() {
 
 	//before, define the camera's working position
 	
-	camera.Position = glm::vec3(0.0f, 3.0f, 5.0f);
+	camera.Position = glm::vec3(0.0f, 2.5f, 10.0f);
 
 	//look at the camera
 	
 	camera.LookAt(glm::vec3(-2.0f, -2.0f, 0.0f));
-	
+
 	//Render
 	
 	while (!glfwWindowShouldClose(app.getWindow())) {
@@ -132,6 +134,10 @@ int main() {
 		//query the status of key presses
 		
 		app.processInput(camera, deltaTime); //esc / w / s / a / d
+
+		//Define the background color
+
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
 		//clean color and depth buffer 
 

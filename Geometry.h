@@ -73,5 +73,55 @@ struct Boundingbox {
 
 WorldPoint toPhysical(int px_x, int px_y);
 
+//Encapsulate the window information
 
+struct Window {
+
+	int id;
+	WorldPoint center;  //the center point -> json center
+	double rotation;    //json rotation
+	double width;       //json width
+
+	//define the window's thickness
+
+	double thickness = 0.24;
+
+	//use windows' information (center,rotation,width) to get windows' coordinate
+	
+	void getStartEndPoints(WorldPoint& outStart, WorldPoint& outEnd) const;
+
+	//get foundation of the window, 4 points
+
+	WallVertices2D getfoundation() const;
+
+	//stretching the z-axis of the window to 3D sapce
+
+	WallVertices3D getStretchedVertices(double height = 2.8) const;
+};
+
+//Encapsulate the door information
+
+struct Door {
+
+	int id;
+	WorldPoint center;  //the center point -> json center
+	double rotation;    //json rotation
+	double width;       //json width
+
+	// define the window's thickness
+
+	double thickness = 0.24;
+
+	//use doors' information (center,rotation,width) to get doors' coordinate
+	
+	void getStartEndPoints(WorldPoint& outStart, WorldPoint& outEnd) const;
+
+	//get foundation of the door, 4 points
+
+	WallVertices2D getfoundation() const;
+
+	//stretching the z-axis of the door to 3D sapce
+
+	WallVertices3D getStretchedVertices(double height = 2.8) const;
+};
 #endif

@@ -74,6 +74,11 @@ std::vector<SemanticObject> SemanticAnalyzer::analyze(const std::vector<cv::Vec4
 
 				winOj.rotation = std::atan2(diffy1, diffx1);
 
+				//ID
+
+				winOj.sourceLineID.push_back(i);
+				winOj.sourceLineID.push_back(j);
+
 				detectedObjects.push_back(winOj);
 
 				//mark the two lines as used for window detection
@@ -93,10 +98,11 @@ std::vector<SemanticObject> SemanticAnalyzer::analyze(const std::vector<cv::Vec4
 		//avoid this line segment has been used for window detection
 		if (usedLines[i])continue;
 
-		if (isDoor(lines[i], lines)) {
+		//create a semantic object for the door and add it to the vector
+		
+		SemanticObject doorOj;
 
-			//create a semantic object for the door and add it to the vector
-			SemanticObject doorOj;
+		if (isDoor(lines[i], lines, static_cast<int>(i), doorOj)) {
 
 			doorOj.Type = SemanticType::DOOR;
 
@@ -115,6 +121,9 @@ std::vector<SemanticObject> SemanticAnalyzer::analyze(const std::vector<cv::Vec4
 
 			doorOj.rotation = std::atan2(diffy, diffx);
 
+			//ID has been push_back in the function isDoor()
+
+			//all data push_back int the doorOj
 			detectedObjects.push_back(doorOj);
 
 			//mark the line as used for door detection
@@ -209,7 +218,7 @@ bool SemanticAnalyzer::isWindow(const cv::Vec4i& line1, const cv::Vec4i& line2) 
 
 	//The maximum allowed midpoint distance is the length of the longest line among the two line segments
 
-	float maxAllowedDist = len1 + len2 /2.0f;
+	float maxAllowedDist = (len1 + len2) /2.0f;
 
 	//if two center points'distance is too far than maximum (len1,len2), so it is not a window
 
@@ -268,9 +277,9 @@ float SemanticAnalyzer::pointToLineDistance(const cv::Point2f& p, const cv::Vec4
 
 //whether the lines segment is a door
 
-bool SemanticAnalyzer::isDoor(const cv::Vec4i& line, const std::vector<cv::Vec4i>& alllines) {
+bool SemanticAnalyzer::isDoor(const cv::Vec4i& line, const std::vector<cv::Vec4i>& alllines, int lineIdx, SemanticObject& doorOj) {
 
-	//caculate the length of the line segment, which is used for the next step: check whether the line segment is a door frame
+	//calculate the length of the line segment, which is used for the next step: check whether the line segment is a door frame
 
 	float dx = (float)(line[2] - line[0]);
 	float dy = (float)(line[3] - line[1]);
@@ -290,9 +299,14 @@ bool SemanticAnalyzer::isDoor(const cv::Vec4i& line, const std::vector<cv::Vec4i
 	bool p1_connected = false;
 	bool p2_connected = false;
 
+	//find the minimum distance from the two points to the wall, which is used for the next step: check whether the line segment is a door frame
+	
+	float p1_min_dist = 9999.0f;
+	float p2_min_dist = 9999.0f;
+
 	//make the threshold in 10.0f, means if pointToLineDistance() = distance < 10.0f, it is a door frame
 
-	const float connectThreshold = 10.0f;
+	const float connectThreshold = 5.0f;
 
 	//find which wall can make the line segment a door frame, which means the line segment is close to the wall
 
@@ -306,13 +320,22 @@ bool SemanticAnalyzer::isDoor(const cv::Vec4i& line, const std::vector<cv::Vec4i
 
 		if (std::sqrt(w_dx * w_dx + w_dy * w_dy) < 80.0f) continue;
 
+		//calculate the distance from p1 and p2 to the wall
+
+		float d1 = pointToLineDistance(p1, wall);
+		float d2 = pointToLineDistance(p2, wall);
+
+		//update the minimum distance for p1 and p2
+		if (d1 < p1_min_dist) p1_min_dist = d1;
+		if (d2 < p2_min_dist) p2_min_dist = d2;
+
 		//check if p1 is close to the wall
-		if (!p1_connected && pointToLineDistance(p1, wall) < connectThreshold) {
+		if (!p1_connected && d1 < connectThreshold) {
 			p1_connected = true;
 		}
 
 		//check if p2 is close to the wall
-		if (!p2_connected && pointToLineDistance(p2, wall) < connectThreshold) {
+		if (!p2_connected && d2 < connectThreshold) {
 			p2_connected = true;
 		}
 
@@ -323,7 +346,236 @@ bool SemanticAnalyzer::isDoor(const cv::Vec4i& line, const std::vector<cv::Vec4i
 		}
 	}
 	
+	//both points are not connected, it is not a door
+	
+	if (!p1_connected && !p2_connected) {
+		return false; //both points are not connected, it is not a door
+	}
+
+	//both points are connected, it is not a door
+	
+	if (p1_connected && p2_connected) {
+		return false;
+	}
+
+	//both points are close to the wall, it is not a door
+
+	if (p1_min_dist < 10.0f && p2_min_dist < 10.0f) {
+		return false; 
+	}
+
+	//one point is connected, one point is not connected, check the distance from the free end to the nearest wall, if it is too far, it is not a door frame
+
+	//freeEnd
+	cv::Point2f freeEnd = p1_connected ? p2 : p1;
+	
+	//hingePoint, means the point that is connected to the wall
+	cv::Point2f hingePoint = p1_connected ? p1 : p2;
+
+	float minArcDist = 9999.0f;
+
+	//a temp box to store the line segment IDs that are short lines on the door arc
+	std::vector<int> tempArcIds;
+
+	for (size_t k = 0;k < alllines.size();k++) {
+		if (k == static_cast<size_t>(lineIdx)) continue;
+
+		//calculate the shortest distance of the freeEnd to the line segment 
+		float arcDist = pointToLineDistance(freeEnd, alllines[k]);
+		if (arcDist < minArcDist) {
+			minArcDist = arcDist;
+		}
+
+		//calculate the distance of the arc line segment 
+		
+		float k_dx = static_cast<float>(alllines[k][2] - alllines[k][0]);
+		float k_dy = static_cast<float>(alllines[k][3] - alllines[k][1]);
+		float k_len = std::sqrt(k_dx * k_dx + k_dy * k_dy);
+
+		//if the k_len > 50.0f, it is not a short line on the door arc, so we can skip it
+		if (k_len > 70.0f)continue;
+
+		//calculate the distance from the hingePoint to the line segment
+		float distToHinge = pointToLineDistance(hingePoint, alllines[k]);
+
+		//radius: len, if (distToHinge - radius) < a threshold, it is short lines on the door arc
+		if (std::abs(distToHinge - len) < 15.0f) {
+
+			//ignore the short lines on the door arc
+			tempArcIds.push_back(static_cast<int>(k)); 
+		}
+
+	}
+
+	if (minArcDist > 30.0f) {
+		return false;
+	}
+	
+	//put door frame and door Arc
+	doorOj.sourceLineID.push_back(lineIdx);
+	for (int arcID : tempArcIds) {
+		doorOj.sourceLineID.push_back(arcID);
+	}
+
 	//one point connected, one point not connected, it is a door frame
 	return (p1_connected != p2_connected);
 
 }
+
+//bool the two short line segment whether to merge
+bool SemanticAnalyzer::shouldMerge(const cv::Vec4i& line1, const cv::Vec4i& line2, cv::Vec4i& mergedLine) {
+
+	//get the two line segments' startpoints and endpoints
+	cv::Point2f p1(static_cast<float>(line1[0]), static_cast<float>(line1[1]));
+	cv::Point2f p2(static_cast<float>(line1[2]), static_cast<float>(line1[3]));
+	cv::Point2f p3(static_cast<float>(line2[0]), static_cast<float>(line2[1]));
+	cv::Point2f p4(static_cast<float>(line2[2]), static_cast<float>(line2[3]));
+
+	//calculate the direction vectors of the two line segments
+	cv::Point2f v1 = p2 - p1;
+	cv::Point2f v2 = p4 - p3;
+
+	//calculate the lengths of the two line segments 
+	float len1 = std::sqrt(v1.x * v1.x + v1.y * v1.y);
+	float len2 = std::sqrt(v2.x * v2.x + v2.y * v2.y);
+
+	if (len1 < 1.0f || len2 < 1.0f) return false;
+
+	//1. calculate the angle between the two line segments using the dot product
+
+	float dot = v1.x * v2.x + v1.y * v2.y;
+	float costheta = std::abs(dot / (len1 * len2));
+
+	//if the angle is large, we think two line segments are not in the same direction, so we do not merge them
+
+	if (costheta < 0.96f) {
+		return false;
+	}
+
+	//2. calculate the distance of line1 and line2
+
+	//get the center point of the line1
+
+	cv::Point2f mid_line1 = (p1 + p2) * 0.5f;
+
+	//get Ax+By+C=0 of the line2
+
+	float A = v2.y;
+	float B = -v2.x;
+	float C = v2.x * p3.y - v2.y * p3.x;
+
+	//if A*A+B*B = line2's length is too small, we don't need to merge 
+
+	if (std::sqrt(v2.y * v2.y + (-v2.x) * (-v2.x)) < 1.0f) return false;
+
+	//get the distance of line1 and line2
+
+	float dist = std::abs(A * mid_line1.x + B * mid_line1.y + C) / std::sqrt(A * A + B * B);
+
+	//if the distance is too large, we think two line segments are not close enough, so we do not merge them
+
+	if (dist > 30.0f) {
+		return false;
+	}
+
+	//3. calculate the minimum distance of the two line segments
+
+	//list all the points's distance between line1 and line2
+
+	float d13 = static_cast<float>(cv::norm(p1 - p3));
+	float d14 = static_cast<float>(cv::norm(p1 - p4));
+	float d23 = static_cast<float>(cv::norm(p2 - p3));
+	float d24 = static_cast<float>(cv::norm(p2 - p4));
+
+	//find the minimum distance between line1 and line2
+
+	float minGap = std::min({d13, d14, d23, d24});
+
+	//if minGap > 10.0f, we think two line segments are not close enough, so we do not merge them
+
+	if (minGap > 60.0f) {
+		return false;
+	}
+
+	//if the two line segments pass the above three tests, we can merge them into a new line segment
+
+	std::vector<cv::Point2f> pts = { p1, p2, p3, p4 };
+	float maxDist = -1.0f;
+
+	//find the two points that are farthest apart among the four points, we write their ID
+    size_t bestI = 0, bestJ = 0;
+
+	for (size_t i = 0;i < pts.size();i++) {
+		for (size_t j = i + 1;j < pts.size();j++) {
+			float distance = static_cast<float>(cv::norm(pts[i] - pts[j]));
+			if (distance > maxDist) {
+				maxDist = distance;
+				bestI = i;
+				bestJ = j;
+			}
+		}
+	}
+
+	mergedLine[0] = static_cast<int>(pts[bestI].x);
+	mergedLine[1] = static_cast<int>(pts[bestI].y);
+	mergedLine[2] = static_cast<int>(pts[bestJ].x);
+	mergedLine[3] = static_cast<int>(pts[bestJ].y);
+
+	return true;
+}
+
+//integrate the short lline segment, when they are a long line segment
+std::vector<cv::Vec4i> SemanticAnalyzer::mergeWallSegments(const std::vector<cv::Vec4i>& walllines) {
+
+	//put all walllines in a active pool, we can modify them
+
+	std::vector<cv::Vec4i> activePool = walllines;
+
+	//whether we need to scan again
+	bool needRescan = true;
+
+	while (needRescan) {
+
+		//if we don't find two line segments need to merge, the while loop directly meets the exit condition
+        needRescan = false;
+
+		bool merge = false;
+
+		for (size_t i = 0;i < activePool.size() && !merge;i++) {
+			for (size_t j = i + 1;j < activePool.size() && !merge;j++) {
+
+				cv::Vec4i merged;
+
+				if (shouldMerge(activePool[i], activePool[j], merged)) {
+
+					//update activePool[i] = mergedLine , which merge a new line segment
+					activePool[i] = merged;
+	
+					//drop activePool[j], put the vector activePool last point to the activPool[j]'s position
+					activePool[j] = activePool.back();
+
+					//cut off the last point's position, which means the activePool length - 1
+					activePool.pop_back();
+
+					//because of above operations, the order is a mess, so we need rescan
+					needRescan = true;
+
+					//The inner loop j ends
+					break;
+
+				}
+			}
+
+			//verify the conditions for rescan
+			if (needRescan) {
+
+				//the outer loop i ends
+				break;
+			}
+			
+		}
+	}
+
+	return activePool;
+}
+

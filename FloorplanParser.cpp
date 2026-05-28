@@ -41,9 +41,11 @@ std::vector<cv::Vec4i> runPhase1_PixelToPhysical(){
 	cv::Canny(img, edgeImg, 80, 150);
 
 	//show results of edge detection
-	
+
+/*
 	cv::imshow("Canny edge", edgeImg);
 	cv::waitKey(0);
+*/
 
 	//Mrophology, solve the 'hollow double line' issue in canny edge detection
 	
@@ -59,10 +61,12 @@ std::vector<cv::Vec4i> runPhase1_PixelToPhysical(){
 
 	cv::dilate(edgeImg, dilatedEdgeImg, kernel, cv::Point(-1, -1), 1);
 
+/*
 	cv::imshow("dilatedEdege", dilatedEdgeImg);
 	cv::waitKey(0);
+*/
 
-	//Thinning, solve the 'thick line' issue in dilation
+    //Thinning, solve the 'thick line' issue in dilation
 
 	cv::Mat thinkernel = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3));
 
@@ -72,8 +76,10 @@ std::vector<cv::Vec4i> runPhase1_PixelToPhysical(){
 
 	cv::erode(dilatedEdgeImg, thinnedEdgeImg, thinkernel, cv::Point(-1, -1), 2);
 
+/*
 	cv::imshow("thinnedEdge", thinnedEdgeImg);
 	cv::waitKey(0);
+*/
 
 	//define the vector of line segments [x1, y1, x2, y2]
 
@@ -99,8 +105,10 @@ std::vector<cv::Vec4i> runPhase1_PixelToPhysical(){
 
 	std::cout << "Detected lines: " << lines.size() << std::endl;
 
+/*
 	cv::imshow("HoughLinesP Result", resultImg);
 	cv::waitKey(0);
+*/
 
 /*
 	have no value for this step, but I want to show the process of image processing, so I put it here

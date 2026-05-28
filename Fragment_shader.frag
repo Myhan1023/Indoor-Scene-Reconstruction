@@ -16,6 +16,9 @@ uniform vec3 viewPos;
 
 uniform sampler2D wallTexture;  //sampler 0: wall
 uniform sampler2D floorTexture;  //sampler 0: floor
+uniform sampler2D doorTexture; //sampler 0: door
+
+bool isWindow = (FragPos.y > 0.01 && FragPos.y < 2.79);
 
 void main()
 {
@@ -30,13 +33,17 @@ void main()
 
     vec3 currentMaterialColor;
     
-    if (FragPos.y < 0.0) 
-    {
+    if (TexCoords.x >= 10.0){
+
+        texColor = texture(doorTexture, TexCoords - vec2(10.0, 0.0)); // - offset to revert UV coordinate
+    } else if (TexCoords.x < 0.0){
+        
+        //the color for windows
+        texColor = vec4(0.6, 0.8, 0.9, 0.2);
+    } else if (FragPos.y < 0.0) {
   
         texColor = texture(floorTexture, TexCoords); 
-    }
-    else 
-    {
+    } else {
 
         texColor = texture(wallTexture, TexCoords);  
     }

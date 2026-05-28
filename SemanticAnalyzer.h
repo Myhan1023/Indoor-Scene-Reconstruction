@@ -23,6 +23,7 @@ struct SemanticObject {
 	glm::vec3 worldPos; //transport center point in 3D (OpenGL coordinate)
 	float width; //the object's real width
 	float rotation; //The deflection angle of an object relative to the coordinate axis
+	std::vector<int> sourceLineID; //the line segment ID that is used for rawlines
 };
 
 //
@@ -31,16 +32,21 @@ public:
 	//use HoughlinesP to analyze the line segments and return a vector of semantic objects, which can be used for further processing and visualization
 	std::vector<SemanticObject> analyze(const std::vector<cv::Vec4i>& lines);
 
+	//merge the short lline segment, when they are a long line segment
+	std::vector<cv::Vec4i> mergeWallSegments(const std::vector<cv::Vec4i>& walllines);
+
 private:
 	//whether the line segment is a window
 	bool isWindow(const cv::Vec4i& line1, const cv::Vec4i& line2);
 
 	//whether the lines segment is a door
-	bool isDoor(const cv::Vec4i& line, const std::vector<cv::Vec4i>& alllines);
+	bool isDoor(const cv::Vec4i& line, const std::vector<cv::Vec4i>& alllines, int lineIdx, SemanticObject& doorOj);
 
 	//two Parament(a point on the line, a wall or a window)
 	float pointToLineDistance(const cv::Point2f& p, const cv::Vec4i& line);
 
+	//bool the two short line segment whether to merge
+	bool shouldMerge(const cv::Vec4i& line1, const cv::Vec4i& line2, cv::Vec4i& mergedLine);
 };
 
 #endif // !SEMANTIC_ANALYZER_H

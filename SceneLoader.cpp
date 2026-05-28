@@ -69,7 +69,8 @@ void runPhase3_PixelToPhysical(std::vector<Vertex>& outVertices, std::vector<uns
 
 	unsigned int offset = 0; //displacement of  wall
 
-//Lighting model: add normal vector
+//Lighting model data: add normal vector
+//for walls
 
 //important: y-axis is height, x-z is surface
 	for (const auto& wall: data["thick_walls"]) {
@@ -146,7 +147,171 @@ void runPhase3_PixelToPhysical(std::vector<Vertex>& outVertices, std::vector<uns
 		offset += (unsigned int)wall["vertices_3d"].size();
 	}
 
-//Lighting model: add normal vector
+	
+//for windows
+
+	for (const auto& window : data["windows"]) {
+
+		//get json window's data
+		Window win;
+		win.id = (int)window["id"];
+		win.center.x = (double)window["center"]["x"];
+		win.center.y = (double)window["center"]["y"];
+		win.rotation = (double)window["rotation"];
+		win.width = (double)window["width"];
+
+		//get 3D coordinate
+		WallVertices3D v3d = win.getStretchedVertices(2.8);
+
+		//defining y-axis is height
+		glm::vec3 win_points[8] = {
+			{v3d.bottom[0].x, 0.0f, v3d.bottom[0].y},
+			{v3d.bottom[1].x, 0.0f, v3d.bottom[1].y},
+			{v3d.bottom[2].x, 0.0f, v3d.bottom[2].y},
+			{v3d.bottom[3].x, 0.0f, v3d.bottom[3].y},
+			{v3d.top[0].x, 2.8f, v3d.top[0].y},
+			{v3d.top[1].x, 2.8f, v3d.top[1].y},
+			{v3d.top[2].x, 2.8f, v3d.top[2].y},
+			{v3d.top[3].x, 2.8f, v3d.top[3].y},
+		};
+
+		//calculate the center point
+		glm::vec3 center(0.0f);
+
+		for (int i = 0;i < 8;i++) {
+			center += win_points[i];
+		}
+
+		center /= 8.0f;
+
+		//data bag (3 position, 3 normal, 2 texcord)
+		for (int i = 0;i < 8;i++) {
+			Vertex v;
+
+			//find the point' position in the last screen (the pixel) 
+			v.Position = win_points[i];
+
+			//the point's Surface normal direction
+
+			v.Normal = glm::normalize(win_points[i] - center);
+
+			//give uv
+
+			if (i % 4 == 0)v.TexCoords = glm::vec2(-1.0f, 0.0f);
+			if (i % 4 == 1)v.TexCoords = glm::vec2(-2.0f, 0.0f);
+			if (i % 4 == 2)v.TexCoords = glm::vec2(-2.0f, -1.0f);
+			if (i % 4 == 3)v.TexCoords = glm::vec2(-1.0f, -1.0f);
+
+			//put this information into outVertices
+			outVertices.push_back(v);
+		}
+		
+		//EBO
+		unsigned int pattern[] = {
+			//bottom
+			0,1,2,0,2,3,
+			//top
+			4,5,6,4,6,7,
+			//left
+			0,3,7,0,4,7,
+			//right
+			1,2,6,1,5,6,
+			//forward
+			0,1,5,0,4,5,
+			//back
+			3,2,7,3,6,7
+		};
+
+		for (unsigned int i : pattern) {
+			outIndices.push_back(i + offset);
+		}
+
+		offset += 8;
+	}
+
+//for doors
+
+	for (const auto& door : data["doors"]) {
+
+		//get json door's data
+		Door dr;
+		dr.id = (int)door["id"];
+		dr.center.x = (double)door["center"]["x"];
+		dr.center.y = (double)door["center"]["y"];
+		dr.rotation = (double)door["rotation"];
+		dr.width = (double)door["width"];
+
+		//get 3D coordinate
+		WallVertices3D v3d = dr.getStretchedVertices(2.8);
+
+		//define the y-axis is height
+		glm::vec3 dr_points[8] = {
+			{v3d.bottom[0].x, 0.0f, v3d.bottom[0].y},
+			{v3d.bottom[1].x, 0.0f, v3d.bottom[1].y},
+			{v3d.bottom[2].x, 0.0f, v3d.bottom[2].y},
+			{v3d.bottom[3].x, 0.0f, v3d.bottom[3].y},
+			{v3d.top[0].x, 2.8f, v3d.top[0].y},
+			{v3d.top[1].x, 2.8f, v3d.top[1].y},
+			{v3d.top[2].x, 2.8f, v3d.top[2].y},
+			{v3d.top[3].x, 2.8f, v3d.top[3].y},
+		};
+
+		//calculate the center point
+		glm::vec3 center(0.0f);
+
+		for (int i = 0;i < 8;i++) {
+			center += dr_points[i];
+		}
+
+		center /= 8.0f;
+
+		//data bag (3 position, 3 normal, 2 texcord)
+		for (int i = 0;i < 8;i++) {
+			Vertex v;
+
+			//find the point' position in the last screen (the pixel) 
+			v.Position = dr_points[i];
+
+			//the point's Surface normal direction
+			v.Normal = glm::normalize(dr_points[i] - center);
+
+			//give uv
+
+			if (i % 4 == 0)v.TexCoords = glm::vec2(10.0f, 0.0f);
+			if (i % 4 == 1)v.TexCoords = glm::vec2(11.0f, 0.0f);
+			if (i % 4 == 2)v.TexCoords = glm::vec2(11.0f, 1.0f);
+			if (i % 4 == 3)v.TexCoords = glm::vec2(10.0f, 1.0f);
+
+			//put this information into outVertices
+			outVertices.push_back(v);
+		}
+
+		//EBO
+		unsigned int pattern[] = {
+			//bottom
+			0,1,2,0,2,3,
+			//top
+			4,5,6,4,6,7,
+			//left
+			0,3,7,0,4,7,
+			//right
+			1,2,6,1,5,6,
+			//forward
+			0,1,5,0,4,5,
+			//back
+			3,2,7,3,6,7
+		};
+
+		for (unsigned int i : pattern) {
+			outIndices.push_back(i + offset);
+		}
+
+		offset += 8;
+	}
+	std::cout << "doors count: " << data["doors"].size() << std::endl;
+
+//Lighting model data: add normal vector
+//for floor
 
     //4 vertex (x, y, z) floor
 
